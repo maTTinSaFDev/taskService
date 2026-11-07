@@ -1,8 +1,11 @@
 import {boardURL, onRouteChange, readRoute, setBoardRoute} from "/router.js";
 
 const initialRoute = readRoute();
-const userId = initialRoute.userId;
-const selectedBoardStorageKey = `taskflow-selected-board-${userId}`;
+let userId = null;
+let currentUser = null;
+let accessToken = "";
+let selectedBoardStorageKey = "";
+let authMode = "login";
 const columnColors = ["#9b9dac", "#7160e8", "#e4a348", "#43ad83", "#de6f8c", "#4e9bc7"];
 const priorityValues = {high: 10, medium: 50, low: 90};
 const taskDragType = "application/x-taskflow-task";
@@ -35,6 +38,9 @@ const columnForm = document.querySelector("#column-form");
 const confirmDialog = document.querySelector("#confirm-dialog");
 const confirmForm = document.querySelector("#confirm-form");
 const toast = document.querySelector("#toast");
+const authGate = document.querySelector("#auth-gate");
+const authForm = document.querySelector("#auth-form");
+const authError = document.querySelector("#auth-error");
 
 function escapeHTML(value = "") {
     return String(value)
@@ -45,17 +51,85 @@ function escapeHTML(value = "") {
         .replaceAll("'", "&#039;");
 }
 
-async function api(path, options = {}) {
+async function api(path, options = {}, allowRefresh = true) {
     const headers = {...options.headers};
     if (options.body) headers["Content-Type"] = "application/json";
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     const response = await fetch(`/api${path}`, {...options, headers});
+    if (response.status === 401 && allowRefresh && await refreshSession()) {
+		return api(path, options, false);
+    }
     if (!response.ok) {
+        if (response.status === 401) showAuth();
         const message = (await response.text()).trim();
         throw new Error(message || `Ошибка запроса: ${response.status}`);
     }
     if (response.status === 204) return null;
     const contentType = response.headers.get("content-type") ?? "";
     return contentType.includes("application/json") ? response.json() : null;
+}
+
+async function authRequest(path, options = {}) {
+    const response = await fetch(`/auth${path}`, {
+        ...options,
+        credentials: "same-origin",
+        headers: {"Content-Type": "application/json", ...options.headers}
+    });
+    if (!response.ok) {
+        const message = (await response.text()).trim();
+        throw new Error(message || `Ошибка авторизации: ${response.status}`);
+    }
+    if (response.status === 204) return null;
+    return response.json();
+}
+
+function applySession(session) {
+    accessToken = session.access_token;
+    currentUser = session.user;
+    userId = currentUser.id;
+    selectedBoardStorageKey = `taskflow-selected-board-${userId}`;
+}
+
+async function refreshSession() {
+    try {
+        const session = await authRequest("/refresh", {method: "POST"});
+        applySession(session);
+        return true;
+    } catch (_) {
+        accessToken = "";
+        currentUser = null;
+        userId = null;
+        return false;
+    }
+}
+
+function showAuth() {
+    accessToken = "";
+    currentUser = null;
+    userId = null;
+    authGate.hidden = false;
+}
+
+function hideAuth() {
+    authGate.hidden = true;
+    authError.textContent = "";
+}
+
+function setAuthMode(mode) {
+    authMode = mode;
+    const isRegister = mode === "register";
+    document.querySelector("#auth-title").textContent = isRegister ? "Регистрация" : "Вход";
+    document.querySelector("#auth-copy").textContent = isRegister
+        ? "Создайте аккаунт и первую канбан-доску."
+        : "Войдите, чтобы открыть свои доски.";
+    document.querySelector("#auth-name-field").hidden = !isRegister;
+    document.querySelector("#auth-name").required = isRegister;
+    document.querySelector("#auth-password").autocomplete = isRegister ? "new-password" : "current-password";
+    document.querySelector("#auth-submit").textContent = isRegister ? "Создать аккаунт" : "Войти";
+    document.querySelector("#auth-switch").textContent = isRegister
+        ? "Уже есть аккаунт? Войти"
+        : "Нет аккаунта? Зарегистрироваться";
+    authError.textContent = "";
 }
 
 function columns() {
@@ -110,11 +184,11 @@ function filteredTasks() {
 }
 
 async function loadBoards(preferredBoardId = null, replaceRoute = true) {
-    state.boards = await api(`/boards?user_id=${userId}`);
+    state.boards = await api("/boards");
     if (!state.boards.length) {
         state.activeBoard = null;
         state.tasks = [];
-        setBoardRoute(userId, null, true);
+        setBoardRoute(null, true);
         render();
         return;
     }
@@ -123,7 +197,7 @@ async function loadBoards(preferredBoardId = null, replaceRoute = true) {
     const targetId = preferredBoardId || storedBoardId;
     state.activeBoard = state.boards.find((item) => item.id === targetId) ?? state.boards[0];
     localStorage.setItem(selectedBoardStorageKey, String(state.activeBoard.id));
-    setBoardRoute(userId, state.activeBoard.id, replaceRoute);
+    setBoardRoute(state.activeBoard.id, replaceRoute);
     await loadTasks();
     render();
 }
@@ -143,7 +217,7 @@ async function loadTasks() {
         state.tasks = [];
         return;
     }
-    state.tasks = await api(`/tasks?user_id=${userId}&board_id=${state.activeBoard.id}`);
+    state.tasks = await api(`/tasks?board_id=${state.activeBoard.id}`);
     state.tasks.sort((left, right) => left.position - right.position || left.id - right.id);
 }
 
@@ -155,7 +229,7 @@ function render() {
 
 function renderBoardList() {
     boardList.innerHTML = state.boards.map((item, index) => `
-        <a class="board-link ${item.id === state.activeBoard?.id ? "active" : ""}" href="${boardURL(userId, item.id)}" data-board-id="${item.id}">
+        <a class="board-link ${item.id === state.activeBoard?.id ? "active" : ""}" href="${boardURL(item.id)}" data-board-id="${item.id}">
             <span class="board-dot" style="background:${columnColors[index % columnColors.length]}"></span>
             <span>${escapeHTML(item.title)}</span>
         </a>
@@ -168,7 +242,7 @@ function renderBoardList() {
             if (!next || next.id === state.activeBoard?.id) return;
             state.activeBoard = next;
             localStorage.setItem(selectedBoardStorageKey, String(next.id));
-            setBoardRoute(userId, next.id);
+            setBoardRoute(next.id);
             closeDrawer();
             await runAction(loadTasks, "Не удалось открыть доску");
             render();
@@ -179,14 +253,14 @@ function renderBoardList() {
 function renderHeader() {
     const title = state.activeBoard?.title ?? "Создайте первую доску";
     const boardColumns = columns();
-    document.querySelector("#board-eyebrow").textContent = state.activeBoard ? `Доска · пользователь ${userId}` : "Рабочее пространство";
+    document.querySelector("#board-eyebrow").textContent = state.activeBoard ? `Доска · ${currentUser?.name ?? ""}` : "Рабочее пространство";
     document.querySelector("#board-title").textContent = title;
     document.querySelector("#board-description").textContent = state.activeBoard
         ? `${boardColumns.length} колонок · ${state.tasks.length} задач`
         : "У одной учётной записи может быть несколько независимых досок.";
-    document.querySelector("#profile-avatar").textContent = `U${userId}`;
-    document.querySelector("#profile-name").textContent = `Пользователь ${userId}`;
-    document.querySelector(".brand").href = boardURL(userId, state.activeBoard?.id);
+    document.querySelector("#profile-avatar").textContent = (currentUser?.name ?? "U").slice(0, 2).toUpperCase();
+    document.querySelector("#profile-name").textContent = currentUser?.name ?? "Пользователь";
+    document.querySelector(".brand").href = boardURL(state.activeBoard?.id);
     document.querySelector("#new-task-top").disabled = !state.activeBoard;
     document.querySelector("#new-column").disabled = !state.activeBoard;
 }
@@ -469,7 +543,6 @@ function taskPayload(task, changes = {}) {
         id: task.id,
         title: task.title,
         description: task.description ?? "",
-        user_id: task.user_id,
         column_id: task.column_id,
         position: task.position,
         progress: task.progress,
@@ -530,7 +603,6 @@ async function createTask() {
     const payload = {
         title,
         description: document.querySelector("#new-task-description").value.trim(),
-        user_id: userId,
         column_id: columnId,
         position: state.tasks.filter((item) => item.column_id === columnId).length,
         progress: 0,
@@ -561,7 +633,7 @@ async function submitBoard() {
     const title = document.querySelector("#board-name").value.trim();
     if (!title) return false;
     const created = await runAction(
-        () => api("/boards", {method: "POST", body: JSON.stringify({owner_user_id: userId, title})}),
+        () => api("/boards", {method: "POST", body: JSON.stringify({title})}),
         "Не удалось создать доску"
     );
     if (created === false) return false;
@@ -790,10 +862,6 @@ document.addEventListener("keydown", (event) => {
 
 onRouteChange(async () => {
     const route = readRoute();
-    if (route.userId !== userId) {
-        window.location.reload();
-        return;
-    }
     const next = state.boards.find((item) => item.id === route.boardId);
     if (!next) {
         await runAction(() => loadBoards(route.boardId), "Не удалось открыть доску");
@@ -807,5 +875,49 @@ onRouteChange(async () => {
     render();
 });
 
+authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    authError.textContent = "";
+    const payload = {
+        email: document.querySelector("#auth-email").value.trim(),
+        password: document.querySelector("#auth-password").value
+    };
+    if (authMode === "register") payload.name = document.querySelector("#auth-name").value.trim();
+    try {
+        const session = await authRequest(authMode === "register" ? "/register" : "/login", {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+        applySession(session);
+        hideAuth();
+        await loadBoards(initialRoute.boardId);
+    } catch (error) {
+        authError.textContent = error.message;
+    }
+});
+
+document.querySelector("#auth-switch").addEventListener("click", () => {
+    setAuthMode(authMode === "login" ? "register" : "login");
+});
+
+document.querySelector("#logout").addEventListener("click", async () => {
+    try {
+        await authRequest("/logout", {method: "POST"});
+    } finally {
+        state.boards = [];
+        state.activeBoard = null;
+        state.tasks = [];
+        showAuth();
+    }
+});
+
 render();
-runAction(() => loadBoards(initialRoute.boardId), "Не удалось загрузить доски");
+setAuthMode("login");
+(async () => {
+    if (await refreshSession()) {
+        hideAuth();
+        await runAction(() => loadBoards(initialRoute.boardId), "Не удалось загрузить доски");
+        return;
+    }
+    showAuth();
+})();

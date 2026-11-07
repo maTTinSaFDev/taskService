@@ -18,8 +18,10 @@ services:
     build:
       context: .
       dockerfile: internal/database-service/Dockerfile
-    env_file:
-      - ./.env
+    environment:
+      ADDRESS: ":${DATABASE_SERVICE_PORT}"
+      DATABASE_URL: "${DATABASE_URL}"
+      DATABASE_SERVICE_PORT: "${DATABASE_SERVICE_PORT}"
     ports:
       - "${DATABASE_SERVICE_PORT}:${DATABASE_SERVICE_PORT}"
     depends_on:
@@ -37,6 +39,11 @@ services:
       dockerfile: internal/task-service/Dockerfile
     environment:
       DATABASE_SERVICE_ADDRESS: "database-service:${DATABASE_SERVICE_PORT}"
+      JWT_PUBLIC_KEY_FILE: "/run/secrets/auth-public.pem"
+      JWT_ISSUER: "${JWT_ISSUER:-taskflow-auth}"
+      JWT_AUDIENCE: "${JWT_AUDIENCE:-taskflow-api}"
+    volumes:
+      - ./secrets/auth-public.pem:/run/secrets/auth-public.pem:ro
     ports:
       - "${TASK_SERVICE_PORT:-8080}:8080"
     depends_on:
@@ -44,6 +51,32 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/8080'" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+  auth-service:
+    build:
+      context: .
+      dockerfile: internal/auth-service/Dockerfile
+    environment:
+      DATABASE_SERVICE_ADDRESS: "database-service:${DATABASE_SERVICE_PORT}"
+      AUTH_SERVICE_ADDRESS: ":8090"
+      JWT_PRIVATE_KEY_FILE: "/run/secrets/auth-private.pem"
+      JWT_ISSUER: "${JWT_ISSUER:-taskflow-auth}"
+      JWT_AUDIENCE: "${JWT_AUDIENCE:-taskflow-api}"
+      ACCESS_TOKEN_TTL: "${ACCESS_TOKEN_TTL:-15m}"
+      REFRESH_TOKEN_TTL: "${REFRESH_TOKEN_TTL:-720h}"
+      AUTH_COOKIE_SECURE: "${AUTH_COOKIE_SECURE:-false}"
+    volumes:
+      - ./secrets/auth-private.pem:/run/secrets/auth-private.pem:ro
+    ports:
+      - "${AUTH_SERVICE_PORT:-8090}:8090"
+    depends_on:
+      database-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/8090'" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -56,6 +89,8 @@ services:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       task-service:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget --quiet --spider http://127.0.0.1/" ]

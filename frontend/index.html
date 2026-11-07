@@ -8,6 +8,29 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+<section id="auth-gate" class="auth-gate" aria-labelledby="auth-title">
+    <form id="auth-form" class="auth-card">
+        <span class="brand-mark auth-brand">T</span>
+        <span class="eyebrow">TaskFlow</span>
+        <h1 id="auth-title">Вход</h1>
+        <p id="auth-copy">Войдите, чтобы открыть свои доски.</p>
+        <label id="auth-name-field" class="field full-field" hidden>
+            <span>Имя</span>
+            <input id="auth-name" name="name" maxlength="100" autocomplete="name">
+        </label>
+        <label class="field full-field">
+            <span>Email</span>
+            <input id="auth-email" name="email" type="email" maxlength="320" autocomplete="email" required>
+        </label>
+        <label class="field full-field">
+            <span>Пароль</span>
+            <input id="auth-password" name="password" type="password" minlength="12" maxlength="72" autocomplete="current-password" required>
+        </label>
+        <p id="auth-error" class="auth-error" role="alert"></p>
+        <button id="auth-submit" class="primary-button" type="submit">Войти</button>
+        <button id="auth-switch" class="auth-switch" type="button">Нет аккаунта? Зарегистрироваться</button>
+    </form>
+</section>
 <div class="app-shell">
     <aside class="sidebar">
         <a class="brand" href="#" aria-label="TaskFlow">
@@ -30,6 +53,7 @@
                     <strong id="profile-name">Пользователь 1</strong>
                     <small>Владелец досок</small>
                 </span>
+                <button id="logout" type="button" aria-label="Выйти">Выйти</button>
             </div>
         </div>
     </aside>

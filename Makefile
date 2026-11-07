@@ -14,6 +14,17 @@ build-task-service:
 run-task-service:
 	./internal/task-service/app
 
+build-auth-service:
+	go -C internal/auth-service build -o app .
+run-auth-service:
+	./internal/auth-service/app
+
+generate-auth-keys:
+	mkdir -p secrets
+	openssl genpkey -algorithm ED25519 -out secrets/auth-private.pem
+	openssl pkey -in secrets/auth-private.pem -pubout -out secrets/auth-public.pem
+	chmod 600 secrets/auth-private.pem
+
 MIGRATION_DATABASE_URL := $(subst @$(DB_HOST):,@$(MIGRATION_DB_HOST):,$(DATABASE_URL))
 migrate-up:
 	@migrate -path "./internal/database-service/migrations" -database "$(MIGRATION_DATABASE_URL)" up
@@ -21,17 +32,17 @@ migrate-up:
 generate-grpc-code-database-service:
 	protoc \
       -I . \
-      -I /opt/homebrew/include \
       --go_out=. \
       --go_opt=paths=source_relative \
       --go-grpc_out=. \
       --go-grpc_opt=paths=source_relative \
       internal/database-service/api/task/v1/task.proto \
       internal/database-service/api/board/v1/board.proto \
-      internal/database-service/api/user/v1/user.proto
+      internal/database-service/api/user/v1/user.proto \
+      internal/database-service/api/auth/v1/auth.proto
 
 deploy-service:
 	docker compose --env-file .env -f docker-compose.yaml up -d --build --wait
 	$(MAKE) migrate-up
 
-PHONY: migrate-up
+PHONY: migrate-up generate-auth-keys
