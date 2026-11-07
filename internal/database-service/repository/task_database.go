@@ -45,6 +45,7 @@ SELECT $1,
 FROM board_columns
 JOIN boards ON boards.id = board_columns.board_id
 WHERE board_columns.id = $4
+  AND boards.owner_user_id = $3
 RETURNING id, column_id, is_done, completed_at;
 `
 	updateTaskSql = `
@@ -67,6 +68,7 @@ FROM board_columns
 JOIN boards ON boards.id = board_columns.board_id
 WHERE tasks.id = $1
   AND board_columns.id = $5
+  AND boards.owner_user_id = $4
 RETURNING tasks.column_id, tasks.is_done, tasks.completed_at;
 `
 	deleteTaskSql = `

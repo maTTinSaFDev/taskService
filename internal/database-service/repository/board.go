@@ -8,5 +8,5 @@ type BoardRepository interface {
 	GetByUserId(userId int64) ([]*model.Board, error)
 	CreateColumn(column *model.BoardColumn) (*model.BoardColumn, error)
 	UpdateColumn(column *model.BoardColumn) (*model.BoardColumn, error)
-	DeleteColumn(id int64, targetColumnId int64) error
+	DeleteColumn(boardId int64, id int64, targetColumnId int64) error
 }

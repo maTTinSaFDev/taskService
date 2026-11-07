@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "database-service/api/auth/v1;authv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// AuthPersistenceService is an internal API used only by auth-service. It
+// deliberately keeps password and refresh-token verification out of the
+// database-service while preserving database-service as the persistence owner.
+service AuthPersistenceService {
+  rpc CreateIdentity(CreateIdentityRequest) returns (Identity);
+  rpc GetCredentialByEmail(GetCredentialByEmailRequest) returns (Credential);
+  rpc GetIdentityById(GetIdentityByIdRequest) returns (Identity);
+  rpc CreateRefreshSession(CreateRefreshSessionRequest) returns (google.protobuf.Empty);
+  rpc RotateRefreshSession(RotateRefreshSessionRequest) returns (Identity);
+  rpc RevokeRefreshSession(RevokeRefreshSessionRequest) returns (google.protobuf.Empty);
+}
+
+message Identity {
+  int64 user_id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+// Credential is internal-only. It must never be forwarded by an HTTP API.
+message Credential {
+  Identity identity = 1;
+  string password_hash = 2;
+}
+
+message CreateIdentityRequest {
+  string name = 1;
+  string email = 2;
+  string password_hash = 3;
+}
+
+message GetCredentialByEmailRequest {
+  string email = 1;
+}
+
+message GetIdentityByIdRequest {
+  int64 user_id = 1;
+}
+
+message CreateRefreshSessionRequest {
+  int64 user_id = 1;
+  string token_hash = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message RotateRefreshSessionRequest {
+  string current_token_hash = 1;
+  string replacement_token_hash = 2;
+  google.protobuf.Timestamp replacement_expires_at = 3;
+}
+
+message RevokeRefreshSessionRequest {
+  string token_hash = 1;
+}

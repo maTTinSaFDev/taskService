@@ -117,7 +117,7 @@ func (handler *BoardHandler) DeleteColumn(_ context.Context, request *boardv1.De
 	if request.Id <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "board column id must be greater than zero")
 	}
-	if err := handler.boardService.DeleteColumn(request.Id, request.TargetColumnId); err != nil {
+	if err := handler.boardService.DeleteColumn(request.BoardId, request.Id, request.TargetColumnId); err != nil {
 		return nil, boardStatusError(err)
 	}
 	return &emptypb.Empty{}, nil

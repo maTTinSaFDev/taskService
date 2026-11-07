@@ -164,7 +164,7 @@ func (repository *BoardRepositoryImpl) UpdateColumn(column *model.BoardColumn) (
 	return column, nil
 }
 
-func (repository *BoardRepositoryImpl) DeleteColumn(id int64, targetColumnId int64) error {
+func (repository *BoardRepositoryImpl) DeleteColumn(expectedBoardId int64, id int64, targetColumnId int64) error {
 	ctx := context.Background()
 	tx, err := repository.pool.Begin(ctx)
 	if err != nil {
@@ -180,6 +180,9 @@ func (repository *BoardRepositoryImpl) DeleteColumn(id int64, targetColumnId int
 	).Scan(&boardId, &doneColumnId)
 	if err != nil {
 		return mapBoardColumnLookupError(err)
+	}
+	if boardId != expectedBoardId {
+		return model.ErrBoardColumnNotFound
 	}
 	if id == doneColumnId {
 		return model.ErrDoneColumnCannotBeDeleted
