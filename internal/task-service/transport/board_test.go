@@ -17,15 +17,20 @@ import (
 type boardServiceStub struct {
 	service.BoardService
 	createFunc       func(context.Context, *model.Board) (*model.Board, error)
-	deleteColumnFunc func(context.Context, int64, int64) error
+	getByIDFunc      func(context.Context, int64) (*model.Board, error)
+	deleteColumnFunc func(context.Context, int64, int64, int64) error
 }
 
 func (stub *boardServiceStub) Create(ctx context.Context, board *model.Board) (*model.Board, error) {
 	return stub.createFunc(ctx, board)
 }
 
-func (stub *boardServiceStub) DeleteColumn(ctx context.Context, id int64, targetColumnId int64) error {
-	return stub.deleteColumnFunc(ctx, id, targetColumnId)
+func (stub *boardServiceStub) GetById(ctx context.Context, id int64) (*model.Board, error) {
+	return stub.getByIDFunc(ctx, id)
+}
+
+func (stub *boardServiceStub) DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error {
+	return stub.deleteColumnFunc(ctx, boardId, id, targetColumnId)
 }
 
 func TestBoardHandlerCreate(t *testing.T) {
@@ -41,7 +46,7 @@ func TestBoardHandlerCreate(t *testing.T) {
 	}
 	router := mux.NewRouter()
 	RegisterBoardRoutes(router, NewBoardHandler(stub))
-	request := httptest.NewRequest(http.MethodPost, "/boards", strings.NewReader(`{"owner_user_id":42,"title":"Development"}`))
+	request := authenticatedRequest(httptest.NewRequest(http.MethodPost, "/boards", strings.NewReader(`{"owner_user_id":999,"title":"Development"}`)), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -56,18 +61,39 @@ func TestBoardHandlerCreate(t *testing.T) {
 
 func TestBoardHandlerDeleteDoneColumnReturnsConflict(t *testing.T) {
 	stub := &boardServiceStub{
-		deleteColumnFunc: func(context.Context, int64, int64) error {
+		getByIDFunc: func(context.Context, int64) (*model.Board, error) {
+			return &model.Board{Id: 7, OwnerUserId: 42}, nil
+		},
+		deleteColumnFunc: func(context.Context, int64, int64, int64) error {
 			return status.Error(codes.FailedPrecondition, "done column cannot be deleted")
 		},
 	}
 	router := mux.NewRouter()
 	RegisterBoardRoutes(router, NewBoardHandler(stub))
-	request := httptest.NewRequest(http.MethodDelete, "/boards/7/columns/11", nil)
+	request := authenticatedRequest(httptest.NewRequest(http.MethodDelete, "/boards/7/columns/11", nil), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
 
 	if response.Code != http.StatusConflict {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBoardHandlerGetHidesForeignBoard(t *testing.T) {
+	stub := &boardServiceStub{
+		getByIDFunc: func(context.Context, int64) (*model.Board, error) {
+			return &model.Board{Id: 7, OwnerUserId: 99}, nil
+		},
+	}
+	router := mux.NewRouter()
+	RegisterBoardRoutes(router, NewBoardHandler(stub))
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/boards/7", nil), 42)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
 }

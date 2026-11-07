@@ -82,8 +82,8 @@ func (repository *GRPCBoardRepository) UpdateColumn(ctx context.Context, column 
 	return boardColumnFromProto(updatedColumn)
 }
 
-func (repository *GRPCBoardRepository) DeleteColumn(ctx context.Context, id int64, targetColumnId int64) error {
-	_, err := repository.client.DeleteColumn(ctx, &boardv1.DeleteColumnRequest{Id: id, TargetColumnId: targetColumnId})
+func (repository *GRPCBoardRepository) DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error {
+	_, err := repository.client.DeleteColumn(ctx, &boardv1.DeleteColumnRequest{BoardId: boardId, Id: id, TargetColumnId: targetColumnId})
 	return err
 }
 

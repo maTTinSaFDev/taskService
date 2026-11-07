@@ -64,14 +64,14 @@ func TestGRPCBoardRepositoryDeleteColumnPreservesError(t *testing.T) {
 	wantErr := status.Error(codes.FailedPrecondition, "done column cannot be deleted")
 	client := &boardServiceClientStub{
 		deleteColumnFunc: func(_ context.Context, request *boardv1.DeleteColumnRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
-			if request.Id != 11 || request.TargetColumnId != 8 {
+			if request.BoardId != 7 || request.Id != 11 || request.TargetColumnId != 8 {
 				t.Fatalf("request = %+v", request)
 			}
 			return nil, wantErr
 		},
 	}
 
-	err := repository.NewGRPCBoardRepository(client).DeleteColumn(context.Background(), 11, 8)
+	err := repository.NewGRPCBoardRepository(client).DeleteColumn(context.Background(), 7, 11, 8)
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("error = %v, want %v", err, wantErr)
 	}

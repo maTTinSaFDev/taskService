@@ -23,7 +23,6 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 }
 
 func RegisterUserRoutes(router *mux.Router, handler *UserHandler) {
-	router.HandleFunc("/users", handler.Create).Methods(http.MethodPost)
 	router.HandleFunc("/users", handler.GetAll).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", handler.GetById).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", handler.Update).Methods(http.MethodPut)
@@ -68,9 +67,17 @@ func (handler *UserHandler) GetAll(writer http.ResponseWriter, request *http.Req
 }
 
 func (handler *UserHandler) Update(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
 	id, err := positivePathId(request, "id")
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if id != userID {
+		http.Error(writer, "forbidden", http.StatusForbidden)
 		return
 	}
 	dtoValue := &dto.UserUpdateDto{}
@@ -87,9 +94,17 @@ func (handler *UserHandler) Update(writer http.ResponseWriter, request *http.Req
 }
 
 func (handler *UserHandler) Delete(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
 	id, err := positivePathId(request, "id")
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if id != userID {
+		http.Error(writer, "forbidden", http.StatusForbidden)
 		return
 	}
 	if err := handler.userService.Delete(request.Context(), id); err != nil {

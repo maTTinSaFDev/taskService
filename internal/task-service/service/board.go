@@ -14,7 +14,7 @@ type BoardService interface {
 	GetByUserId(ctx context.Context, userId int64) ([]*model.Board, error)
 	CreateColumn(ctx context.Context, column *model.BoardColumn) (*model.BoardColumn, error)
 	UpdateColumn(ctx context.Context, column *model.BoardColumn) (*model.BoardColumn, error)
-	DeleteColumn(ctx context.Context, id int64, targetColumnId int64) error
+	DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error
 }
 
 type BoardServiceImpl struct {
@@ -66,9 +66,9 @@ func (service *BoardServiceImpl) UpdateColumn(ctx context.Context, column *model
 	return service.repository.UpdateColumn(ctx, column)
 }
 
-func (service *BoardServiceImpl) DeleteColumn(ctx context.Context, id int64, targetColumnId int64) error {
-	if id <= 0 {
-		return errors.New("board column id must be greater than zero")
+func (service *BoardServiceImpl) DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error {
+	if boardId <= 0 || id <= 0 {
+		return errors.New("board and column ids must be greater than zero")
 	}
-	return service.repository.DeleteColumn(ctx, id, targetColumnId)
+	return service.repository.DeleteColumn(ctx, boardId, id, targetColumnId)
 }

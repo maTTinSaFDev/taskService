@@ -11,5 +11,5 @@ type BoardRepository interface {
 	GetByUserId(ctx context.Context, userId int64) ([]*model.Board, error)
 	CreateColumn(ctx context.Context, column *model.BoardColumn) (*model.BoardColumn, error)
 	UpdateColumn(ctx context.Context, column *model.BoardColumn) (*model.BoardColumn, error)
-	DeleteColumn(ctx context.Context, id int64, targetColumnId int64) error
+	DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error
 }

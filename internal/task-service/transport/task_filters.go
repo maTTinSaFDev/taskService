@@ -8,22 +8,10 @@ import (
 	"strings"
 )
 
-const userIDFilterName = "user_id"
-
 const boardIDFilterName = "board_id"
 
-func taskFiltersFromRequest(r *http.Request) (model.TaskFilters, error) {
-	filters := model.TaskFilters{}
-	rawUserID := strings.TrimSpace(r.URL.Query().Get(userIDFilterName))
-	if rawUserID == "" {
-		return filters, model.ErrUserIDFilterRequired
-	}
-
-	userID, err := strconv.ParseInt(rawUserID, 10, 64)
-	if err != nil {
-		return filters, errors.New(`query parameter "user_id" must be a valid integer`)
-	}
-	filters.UserID = &userID
+func taskFiltersFromRequest(r *http.Request, authenticatedUserID int64) (model.TaskFilters, error) {
+	filters := model.TaskFilters{UserID: &authenticatedUserID}
 	rawBoardID := strings.TrimSpace(r.URL.Query().Get(boardIDFilterName))
 	if rawBoardID != "" {
 		boardID, err := strconv.ParseInt(rawBoardID, 10, 64)

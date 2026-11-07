@@ -28,13 +28,8 @@ func (stub *httpUserServiceStub) Delete(ctx context.Context, id int64) error {
 	return stub.deleteFunc(ctx, id)
 }
 
-func TestUserHandlerCreate(t *testing.T) {
-	stub := &httpUserServiceStub{
-		createFunc: func(_ context.Context, user *model.User) (*model.User, error) {
-			user.Id = 7
-			return user, nil
-		},
-	}
+func TestUserHandlerCreateRouteIsNotExposed(t *testing.T) {
+	stub := &httpUserServiceStub{}
 	router := mux.NewRouter()
 	RegisterUserRoutes(router, NewUserHandler(stub))
 	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Vadim"}`))
@@ -42,11 +37,8 @@ func TestUserHandlerCreate(t *testing.T) {
 
 	router.ServeHTTP(response, request)
 
-	if response.Code != http.StatusCreated {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"id":7`) {
-		t.Fatalf("body = %s", response.Body.String())
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -58,7 +50,7 @@ func TestUserHandlerDeleteReferencedUserReturnsConflict(t *testing.T) {
 	}
 	router := mux.NewRouter()
 	RegisterUserRoutes(router, NewUserHandler(stub))
-	request := httptest.NewRequest(http.MethodDelete, "/users/7", nil)
+	request := authenticatedRequest(httptest.NewRequest(http.MethodDelete, "/users/7", nil), 7)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)

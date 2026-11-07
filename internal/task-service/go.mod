@@ -5,6 +5,7 @@ go 1.27.3
 require (
 	core v0.0.0
 	database-service v0.0.0
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/mux v1.8.1
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12

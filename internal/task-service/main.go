@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"task-service/repository"
+	"task-service/security"
 	"task-service/service"
 	"task-service/transport"
 
@@ -33,6 +34,22 @@ func run() error {
 	databaseServiceAddress := strings.TrimSpace(os.Getenv(databaseServiceAddressEnv))
 	if databaseServiceAddress == "" {
 		return fmt.Errorf("%s is not set", databaseServiceAddressEnv)
+	}
+	publicKeyFile := strings.TrimSpace(os.Getenv("JWT_PUBLIC_KEY_FILE"))
+	if publicKeyFile == "" {
+		return fmt.Errorf("JWT_PUBLIC_KEY_FILE is not set")
+	}
+	publicKey, err := security.LoadEd25519PublicKey(publicKeyFile)
+	if err != nil {
+		return err
+	}
+	verifier, err := security.NewJWTVerifier(
+		publicKey,
+		envOrDefault("JWT_ISSUER", "taskflow-auth"),
+		envOrDefault("JWT_AUDIENCE", "taskflow-api"),
+	)
+	if err != nil {
+		return err
 	}
 
 	connection, err := grpc.NewClient(
@@ -59,10 +76,18 @@ func run() error {
 	userService := service.NewUserService(userRepository)
 	userHandler := transport.NewUserHandler(userService)
 	transport.RegisterUserRoutes(router, userHandler)
+	router.Use(transport.RequireAuth(verifier))
 
 	log.Printf("HTTP listening on %s", httpServerAddress)
 	if err := http.ListenAndServe(httpServerAddress, router); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve HTTP: %w", err)
 	}
 	return nil
+}
+
+func envOrDefault(name string, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		return value
+	}
+	return fallback
 }

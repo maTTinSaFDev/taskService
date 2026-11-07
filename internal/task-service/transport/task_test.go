@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"task-service/service"
 	"testing"
 	"time"
@@ -48,7 +47,7 @@ func (stub *getByFiltersTaskServiceStub) GetByFilters(ctx context.Context, filte
 func TestGetById_ReturnsNotFoundForGRPCNotFound(t *testing.T) {
 	stub := &getByIDTaskServiceStub{err: status.Error(codes.NotFound, "task not found")}
 	router := NewRouter(NewTaskHandler(stub))
-	request := httptest.NewRequest(http.MethodGet, "/tasks/17", nil)
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks/17", nil), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -64,7 +63,7 @@ func TestGetById_ReturnsNotFoundForGRPCNotFound(t *testing.T) {
 func TestGetById_ReturnsBadRequestForInvalidIDWithoutCallingService(t *testing.T) {
 	stub := &getByIDTaskServiceStub{}
 	router := NewRouter(NewTaskHandler(stub))
-	request := httptest.NewRequest(http.MethodGet, "/tasks/0", nil)
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks/0", nil), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -80,7 +79,7 @@ func TestGetById_ReturnsBadRequestForInvalidIDWithoutCallingService(t *testing.T
 func TestGetById_ReturnsBadGatewayForUnavailableGRPCService(t *testing.T) {
 	stub := &getByIDTaskServiceStub{err: status.Error(codes.Unavailable, "database-service unavailable")}
 	router := NewRouter(NewTaskHandler(stub))
-	request := httptest.NewRequest(http.MethodGet, "/tasks/17", nil)
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks/17", nil), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -100,7 +99,7 @@ func TestGetById_ReturnsSnakeCaseJSON(t *testing.T) {
 		Priority:  3,
 	}}
 	router := NewRouter(NewTaskHandler(stub))
-	request := httptest.NewRequest(http.MethodGet, "/tasks/17", nil)
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks/17", nil), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -124,22 +123,32 @@ func TestGetById_ReturnsSnakeCaseJSON(t *testing.T) {
 	}
 }
 
-func TestGetByFilters_MissingUserIDReturnsBadRequestWithoutCallingService(t *testing.T) {
-	stub := &getByFiltersTaskServiceStub{}
-	router := NewRouter(&TaskHandlerImpl{taskService: stub})
-	request := httptest.NewRequest(http.MethodGet, "/tasks", nil)
+func TestGetById_HidesTaskOwnedByAnotherUser(t *testing.T) {
+	stub := &getByIDTaskServiceStub{task: &model.Task{Id: 17, UserId: 99, Title: "Private"}}
+	router := NewRouter(NewTaskHandler(stub))
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks/17", nil), 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
 
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("status code = %d, want %d", response.Code, http.StatusBadRequest)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status code = %d, want %d", response.Code, http.StatusNotFound)
 	}
-	if !strings.Contains(response.Body.String(), model.ErrUserIDFilterRequired.Error()) {
-		t.Fatalf("response body = %q, want missing user_id message", response.Body.String())
+}
+
+func TestGetByFilters_UsesAuthenticatedUserWithoutQueryParameter(t *testing.T) {
+	stub := &getByFiltersTaskServiceStub{}
+	router := NewRouter(&TaskHandlerImpl{taskService: stub})
+	request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks", nil), 42)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", response.Code, http.StatusOK)
 	}
-	if stub.called {
-		t.Fatal("service must not be called without the required user_id filter")
+	if !stub.called || stub.filters.UserID == nil || *stub.filters.UserID != 42 {
+		t.Fatalf("service filters = %+v, want authenticated user 42", stub.filters)
 	}
 }
 
@@ -150,8 +159,9 @@ func TestGetByFilters_ValidUserIDCallsServiceAndReturnsTasks(t *testing.T) {
 	}
 	stub := &getByFiltersTaskServiceStub{tasks: want}
 	router := NewRouter(&TaskHandlerImpl{taskService: stub})
-	request := httptest.NewRequest(http.MethodGet, "/tasks?user_id=42", nil)
+	request := httptest.NewRequest(http.MethodGet, "/tasks?user_id=999", nil)
 	request = request.WithContext(context.WithValue(request.Context(), requestContextKey{}, "request context"))
+	request = authenticatedRequest(request, 42)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -186,39 +196,33 @@ func TestGetByFilters_ValidUserIDCallsServiceAndReturnsTasks(t *testing.T) {
 	}
 }
 
-func TestGetByFilters_InvalidUserIDReturnsBadRequestWithoutCallingService(t *testing.T) {
+func TestGetByFilters_IgnoresSpoofedUserID(t *testing.T) {
 	for _, testCase := range []struct {
-		name        string
-		query       string
-		wantMessage string
+		name  string
+		query string
 	}{
 		{
-			name:        "not an integer",
-			query:       "user_id=invalid",
-			wantMessage: `query parameter "user_id" must be a valid integer`,
+			name:  "not an integer",
+			query: "user_id=invalid",
 		},
 		{
-			name:        "zero",
-			query:       "user_id=0",
-			wantMessage: model.ErrUserIDFilterInvalid.Error(),
+			name:  "different user",
+			query: "user_id=999",
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			stub := &getByFiltersTaskServiceStub{}
 			router := NewRouter(&TaskHandlerImpl{taskService: stub})
-			request := httptest.NewRequest(http.MethodGet, "/tasks?"+testCase.query, nil)
+			request := authenticatedRequest(httptest.NewRequest(http.MethodGet, "/tasks?"+testCase.query, nil), 42)
 			response := httptest.NewRecorder()
 
 			router.ServeHTTP(response, request)
 
-			if response.Code != http.StatusBadRequest {
-				t.Fatalf("status code = %d, want %d", response.Code, http.StatusBadRequest)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status code = %d, want %d", response.Code, http.StatusOK)
 			}
-			if !strings.Contains(response.Body.String(), testCase.wantMessage) {
-				t.Fatalf("response body = %q, want %q", response.Body.String(), testCase.wantMessage)
-			}
-			if stub.called {
-				t.Fatal("service must not be called for an invalid user_id filter")
+			if !stub.called || stub.filters.UserID == nil || *stub.filters.UserID != 42 {
+				t.Fatalf("service filters = %+v, want authenticated user 42", stub.filters)
 			}
 		})
 	}

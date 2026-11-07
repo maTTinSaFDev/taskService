@@ -32,13 +32,17 @@ func RegisterBoardRoutes(router *mux.Router, handler *BoardHandler) {
 }
 
 func (handler *BoardHandler) Create(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
 	dtoValue := &dto.BoardCreateDto{}
 	if err := json.NewDecoder(request.Body).Decode(dtoValue); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
 	board, err := handler.boardService.Create(request.Context(), &model.Board{
-		OwnerUserId: dtoValue.OwnerUserId,
+		OwnerUserId: userID,
 		Title:       dtoValue.Title,
 	})
 	if err != nil {
@@ -49,6 +53,10 @@ func (handler *BoardHandler) Create(writer http.ResponseWriter, request *http.Re
 }
 
 func (handler *BoardHandler) GetById(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
 	id, err := positivePathId(request, "id")
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -59,13 +67,16 @@ func (handler *BoardHandler) GetById(writer http.ResponseWriter, request *http.R
 		writeBoardError(writer, err)
 		return
 	}
+	if board.OwnerUserId != userID {
+		http.Error(writer, "board not found", http.StatusNotFound)
+		return
+	}
 	writeJSON(writer, http.StatusOK, board)
 }
 
 func (handler *BoardHandler) GetByUserId(writer http.ResponseWriter, request *http.Request) {
-	userId, err := strconv.ParseInt(request.URL.Query().Get("user_id"), 10, 64)
-	if err != nil || userId <= 0 {
-		http.Error(writer, "user_id must be a positive integer", http.StatusBadRequest)
+	userId, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
 		return
 	}
 	boards, err := handler.boardService.GetByUserId(request.Context(), userId)
@@ -77,9 +88,16 @@ func (handler *BoardHandler) GetByUserId(writer http.ResponseWriter, request *ht
 }
 
 func (handler *BoardHandler) CreateColumn(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
 	boardId, err := positivePathId(request, "board_id")
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !handler.requireOwnedBoard(writer, request, boardId, userID) {
 		return
 	}
 	dtoValue := &dto.BoardColumnCreateDto{}
@@ -100,9 +118,16 @@ func (handler *BoardHandler) CreateColumn(writer http.ResponseWriter, request *h
 }
 
 func (handler *BoardHandler) UpdateColumn(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
 	boardId, err := positivePathId(request, "board_id")
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !handler.requireOwnedBoard(writer, request, boardId, userID) {
 		return
 	}
 	columnId, err := positivePathId(request, "column_id")
@@ -129,6 +154,18 @@ func (handler *BoardHandler) UpdateColumn(writer http.ResponseWriter, request *h
 }
 
 func (handler *BoardHandler) DeleteColumn(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := requireAuthenticatedUser(writer, request)
+	if !ok {
+		return
+	}
+	boardId, err := positivePathId(request, "board_id")
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !handler.requireOwnedBoard(writer, request, boardId, userID) {
+		return
+	}
 	columnId, err := positivePathId(request, "column_id")
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -143,11 +180,24 @@ func (handler *BoardHandler) DeleteColumn(writer http.ResponseWriter, request *h
 			return
 		}
 	}
-	if err := handler.boardService.DeleteColumn(request.Context(), columnId, targetColumnId); err != nil {
+	if err := handler.boardService.DeleteColumn(request.Context(), boardId, columnId, targetColumnId); err != nil {
 		writeBoardError(writer, err)
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *BoardHandler) requireOwnedBoard(writer http.ResponseWriter, request *http.Request, boardID int64, userID int64) bool {
+	board, err := handler.boardService.GetById(request.Context(), boardID)
+	if err != nil {
+		writeBoardError(writer, err)
+		return false
+	}
+	if board.OwnerUserId != userID {
+		http.Error(writer, "board not found", http.StatusNotFound)
+		return false
+	}
+	return true
 }
 
 func positivePathId(request *http.Request, name string) (int64, error) {

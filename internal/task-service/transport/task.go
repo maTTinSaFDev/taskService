@@ -44,6 +44,10 @@ func NewTaskHandler(taskService service.TaskService) *TaskHandlerImpl {
 }
 
 func (handler *TaskHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuthenticatedUser(w, r)
+	if !ok {
+		return
+	}
 	idString := mux.Vars(r)["id"]
 	if idString == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -63,6 +67,10 @@ func (handler *TaskHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) 
 	task, err := handler.taskService.GetById(r.Context(), id)
 	if err != nil {
 		writeGetByIDError(w, err)
+		return
+	}
+	if task.UserId != userID {
+		http.Error(w, "task not found", http.StatusNotFound)
 		return
 	}
 	writeJSON(w, http.StatusOK, task)
@@ -85,7 +93,11 @@ func writeGetByIDError(w http.ResponseWriter, err error) {
 }
 
 func (handler *TaskHandlerImpl) GetByFilters(w http.ResponseWriter, r *http.Request) {
-	filters, err := taskFiltersFromRequest(r)
+	userID, ok := requireAuthenticatedUser(w, r)
+	if !ok {
+		return
+	}
+	filters, err := taskFiltersFromRequest(r, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -101,6 +113,10 @@ func (handler *TaskHandlerImpl) GetByFilters(w http.ResponseWriter, r *http.Requ
 }
 
 func (handler *TaskHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuthenticatedUser(w, r)
+	if !ok {
+		return
+	}
 	taskDto := &dto.TaskCreateDto{}
 	err := json.NewDecoder(r.Body).Decode(taskDto)
 	if err != nil {
@@ -109,7 +125,7 @@ func (handler *TaskHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	taskModel := &model.Task{
-		UserId:      taskDto.UserId,
+		UserId:      userID,
 		Title:       taskDto.Title,
 		Description: taskDto.Description,
 		ColumnId:    taskDto.ColumnId,
@@ -132,6 +148,10 @@ func (handler *TaskHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *TaskHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuthenticatedUser(w, r)
+	if !ok {
+		return
+	}
 	taskDto := &dto.TaskUpdateDto{}
 	err := json.NewDecoder(r.Body).Decode(taskDto)
 	if err != nil {
@@ -143,9 +163,18 @@ func (handler *TaskHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "id must be greater than zero", http.StatusBadRequest)
 		return
 	}
+	existing, err := handler.taskService.GetById(r.Context(), taskDto.Id)
+	if err != nil {
+		writeGetByIDError(w, err)
+		return
+	}
+	if existing.UserId != userID {
+		http.Error(w, "task not found", http.StatusNotFound)
+		return
+	}
 	taskModel := &model.Task{
 		Id:          taskDto.Id,
-		UserId:      taskDto.UserId,
+		UserId:      userID,
 		Title:       taskDto.Title,
 		Description: taskDto.Description,
 		ColumnId:    taskDto.ColumnId,
@@ -166,6 +195,10 @@ func (handler *TaskHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *TaskHandlerImpl) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireAuthenticatedUser(w, r)
+	if !ok {
+		return
+	}
 	idString := mux.Vars(r)["id"]
 	if idString == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -180,6 +213,15 @@ func (handler *TaskHandlerImpl) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	if id <= 0 {
 		http.Error(w, "id must be greater than zero", http.StatusBadRequest)
+		return
+	}
+	existing, err := handler.taskService.GetById(r.Context(), id)
+	if err != nil {
+		writeGetByIDError(w, err)
+		return
+	}
+	if existing.UserId != userID {
+		http.Error(w, "task not found", http.StatusNotFound)
 		return
 	}
 	err = handler.taskService.Delete(r.Context(), id)
