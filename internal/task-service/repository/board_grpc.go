@@ -11,8 +11,6 @@ type GRPCBoardRepository struct {
 	client boardv1.BoardServiceClient
 }
 
-var _ BoardRepository = (*GRPCBoardRepository)(nil)
-
 func NewGRPCBoardRepository(client boardv1.BoardServiceClient) *GRPCBoardRepository {
 	return &GRPCBoardRepository{client: client}
 }
@@ -55,36 +53,6 @@ func (repository *GRPCBoardRepository) GetByUserId(ctx context.Context, userId i
 		}
 	}
 	return boards, nil
-}
-
-func (repository *GRPCBoardRepository) CreateColumn(ctx context.Context, column *model.BoardColumn) (*model.BoardColumn, error) {
-	createdColumn, err := repository.client.CreateColumn(ctx, &boardv1.CreateColumnRequest{
-		BoardId:  column.BoardId,
-		Title:    column.Title,
-		Position: column.Position,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return boardColumnFromProto(createdColumn)
-}
-
-func (repository *GRPCBoardRepository) UpdateColumn(ctx context.Context, column *model.BoardColumn) (*model.BoardColumn, error) {
-	updatedColumn, err := repository.client.UpdateColumn(ctx, &boardv1.UpdateColumnRequest{
-		Id:       column.Id,
-		BoardId:  column.BoardId,
-		Title:    column.Title,
-		Position: column.Position,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return boardColumnFromProto(updatedColumn)
-}
-
-func (repository *GRPCBoardRepository) DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error {
-	_, err := repository.client.DeleteColumn(ctx, &boardv1.DeleteColumnRequest{BoardId: boardId, Id: id, TargetColumnId: targetColumnId})
-	return err
 }
 
 func boardFromProto(board *boardv1.Board) (*model.Board, error) {

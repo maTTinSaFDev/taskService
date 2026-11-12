@@ -12,6 +12,7 @@ service BoardService {
   rpc GetBoardsByUserId(GetBoardsByUserIdRequest) returns (GetBoardsByUserIdResponse);
   rpc CreateColumn(CreateColumnRequest) returns (BoardColumn);
   rpc UpdateColumn(UpdateColumnRequest) returns (BoardColumn);
+  rpc ReorderColumns(ReorderColumnsRequest) returns (google.protobuf.Empty);
   rpc DeleteColumn(DeleteColumnRequest) returns (google.protobuf.Empty);
 }
 
@@ -62,6 +63,11 @@ message UpdateColumnRequest {
   int64 board_id = 2;
   string title = 3;
   int32 position = 4;
+}
+
+message ReorderColumnsRequest {
+  int64 board_id = 1;
+  repeated int64 column_ids = 2;
 }
 
 message DeleteColumnRequest {

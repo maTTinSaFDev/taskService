@@ -25,8 +25,6 @@ type taskServiceClientStub struct {
 	getTasksByUserIDFunc func(context.Context, *taskv1.GetTasksByUserIdRequest, ...grpc.CallOption) (*taskv1.GetTasksByUserIdResponse, error)
 }
 
-var _ taskv1.TaskServiceClient = (*taskServiceClientStub)(nil)
-
 func (stub *taskServiceClientStub) CreateTask(ctx context.Context, request *taskv1.CreateTaskRequest, options ...grpc.CallOption) (*taskv1.CreateTaskResponse, error) {
 	return stub.createTaskFunc(ctx, request, options...)
 }

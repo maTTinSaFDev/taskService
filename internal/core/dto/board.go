@@ -14,3 +14,7 @@ type BoardColumnUpdateDto struct {
 	Title    string `json:"title"`
 	Position int32  `json:"position"`
 }
+
+type BoardColumnOrderDto struct {
+	ColumnIds []int64 `json:"column_ids"`
+}

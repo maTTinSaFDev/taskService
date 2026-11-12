@@ -10,15 +10,12 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type boardServiceStub struct {
 	service.BoardService
-	createFunc       func(context.Context, *model.Board) (*model.Board, error)
-	getByIDFunc      func(context.Context, int64) (*model.Board, error)
-	deleteColumnFunc func(context.Context, int64, int64, int64) error
+	createFunc  func(context.Context, *model.Board) (*model.Board, error)
+	getByIDFunc func(context.Context, int64) (*model.Board, error)
 }
 
 func (stub *boardServiceStub) Create(ctx context.Context, board *model.Board) (*model.Board, error) {
@@ -27,10 +24,6 @@ func (stub *boardServiceStub) Create(ctx context.Context, board *model.Board) (*
 
 func (stub *boardServiceStub) GetById(ctx context.Context, id int64) (*model.Board, error) {
 	return stub.getByIDFunc(ctx, id)
-}
-
-func (stub *boardServiceStub) DeleteColumn(ctx context.Context, boardId int64, id int64, targetColumnId int64) error {
-	return stub.deleteColumnFunc(ctx, boardId, id, targetColumnId)
 }
 
 func TestBoardHandlerCreate(t *testing.T) {
@@ -56,27 +49,6 @@ func TestBoardHandlerCreate(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"done_column_id":11`) {
 		t.Fatalf("body = %s", response.Body.String())
-	}
-}
-
-func TestBoardHandlerDeleteDoneColumnReturnsConflict(t *testing.T) {
-	stub := &boardServiceStub{
-		getByIDFunc: func(context.Context, int64) (*model.Board, error) {
-			return &model.Board{Id: 7, OwnerUserId: 42}, nil
-		},
-		deleteColumnFunc: func(context.Context, int64, int64, int64) error {
-			return status.Error(codes.FailedPrecondition, "done column cannot be deleted")
-		},
-	}
-	router := mux.NewRouter()
-	RegisterBoardRoutes(router, NewBoardHandler(stub))
-	request := authenticatedRequest(httptest.NewRequest(http.MethodDelete, "/boards/7/columns/11", nil), 42)
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusConflict {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 }
 

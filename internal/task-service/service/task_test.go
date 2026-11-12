@@ -4,7 +4,6 @@ import (
 	"context"
 	"core/model"
 	"errors"
-	"task-service/repository"
 	"task-service/service"
 	"testing"
 	"time"
@@ -17,8 +16,6 @@ type taskRepositoryStub struct {
 	updateFunc       func(ctx context.Context, task *model.Task) error
 	deleteFunc       func(ctx context.Context, id int64) error
 }
-
-var _ repository.TaskRepository = (*taskRepositoryStub)(nil)
 
 func (stub *taskRepositoryStub) GetById(ctx context.Context, id int64) (*model.Task, error) {
 	return stub.getByIDFunc(ctx, id)

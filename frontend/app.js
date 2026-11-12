@@ -721,16 +721,13 @@ async function reorderColumn(draggedColumnId, targetColumnId, placeAfter) {
     if (targetIndex < 0) return;
     reordered.splice(targetIndex + (placeAfter ? 1 : 0), 0, dragged);
 
-    const changed = reordered
-        .map((column, position) => ({column, position}))
-        .filter(({column, position}) => column.position !== position);
-    if (!changed.length) return;
+    if (reordered.every((column, position) => column.position === position)) return;
 
     const updated = await runAction(
-        () => Promise.all(changed.map(({column, position}) => api(`/boards/${state.activeBoard.id}/columns/${column.id}`, {
+        () => api(`/boards/${state.activeBoard.id}/columns/order`, {
             method: "PUT",
-            body: JSON.stringify({title: column.title, position})
-        }))),
+            body: JSON.stringify({column_ids: reordered.map((column) => column.id)})
+        }),
         "Не удалось изменить порядок колонок"
     );
     await refreshActiveBoard();

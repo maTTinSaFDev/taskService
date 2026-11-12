@@ -522,6 +522,58 @@ func (x *UpdateColumnRequest) GetPosition() int32 {
 	return 0
 }
 
+type ReorderColumnsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BoardId       int64                  `protobuf:"varint,1,opt,name=board_id,json=boardId,proto3" json:"board_id,omitempty"`
+	ColumnIds     []int64                `protobuf:"varint,2,rep,packed,name=column_ids,json=columnIds,proto3" json:"column_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderColumnsRequest) Reset() {
+	*x = ReorderColumnsRequest{}
+	mi := &file_internal_database_service_api_board_v1_board_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderColumnsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderColumnsRequest) ProtoMessage() {}
+
+func (x *ReorderColumnsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_database_service_api_board_v1_board_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderColumnsRequest.ProtoReflect.Descriptor instead.
+func (*ReorderColumnsRequest) Descriptor() ([]byte, []int) {
+	return file_internal_database_service_api_board_v1_board_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ReorderColumnsRequest) GetBoardId() int64 {
+	if x != nil {
+		return x.BoardId
+	}
+	return 0
+}
+
+func (x *ReorderColumnsRequest) GetColumnIds() []int64 {
+	if x != nil {
+		return x.ColumnIds
+	}
+	return nil
+}
+
 type DeleteColumnRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -533,7 +585,7 @@ type DeleteColumnRequest struct {
 
 func (x *DeleteColumnRequest) Reset() {
 	*x = DeleteColumnRequest{}
-	mi := &file_internal_database_service_api_board_v1_board_proto_msgTypes[9]
+	mi := &file_internal_database_service_api_board_v1_board_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -545,7 +597,7 @@ func (x *DeleteColumnRequest) String() string {
 func (*DeleteColumnRequest) ProtoMessage() {}
 
 func (x *DeleteColumnRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_database_service_api_board_v1_board_proto_msgTypes[9]
+	mi := &file_internal_database_service_api_board_v1_board_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,7 +610,7 @@ func (x *DeleteColumnRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteColumnRequest.ProtoReflect.Descriptor instead.
 func (*DeleteColumnRequest) Descriptor() ([]byte, []int) {
-	return file_internal_database_service_api_board_v1_board_proto_rawDescGZIP(), []int{9}
+	return file_internal_database_service_api_board_v1_board_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteColumnRequest) GetId() int64 {
@@ -617,17 +669,22 @@ const file_internal_database_service_api_board_v1_board_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
 	"\bboard_id\x18\x02 \x01(\x03R\aboardId\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x1a\n" +
-	"\bposition\x18\x04 \x01(\x05R\bposition\"j\n" +
+	"\bposition\x18\x04 \x01(\x05R\bposition\"Q\n" +
+	"\x15ReorderColumnsRequest\x12\x19\n" +
+	"\bboard_id\x18\x01 \x01(\x03R\aboardId\x12\x1d\n" +
+	"\n" +
+	"column_ids\x18\x02 \x03(\x03R\tcolumnIds\"j\n" +
 	"\x13DeleteColumnRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12(\n" +
 	"\x10target_column_id\x18\x02 \x01(\x03R\x0etargetColumnId\x12\x19\n" +
-	"\bboard_id\x18\x03 \x01(\x03R\aboardId2\xcb\x03\n" +
+	"\bboard_id\x18\x03 \x01(\x03R\aboardId2\x96\x04\n" +
 	"\fBoardService\x12J\n" +
 	"\vCreateBoard\x12\x1c.board.v1.CreateBoardRequest\x1a\x1d.board.v1.CreateBoardResponse\x12>\n" +
 	"\fGetBoardById\x12\x1d.board.v1.GetBoardByIdRequest\x1a\x0f.board.v1.Board\x12\\\n" +
 	"\x11GetBoardsByUserId\x12\".board.v1.GetBoardsByUserIdRequest\x1a#.board.v1.GetBoardsByUserIdResponse\x12D\n" +
 	"\fCreateColumn\x12\x1d.board.v1.CreateColumnRequest\x1a\x15.board.v1.BoardColumn\x12D\n" +
-	"\fUpdateColumn\x12\x1d.board.v1.UpdateColumnRequest\x1a\x15.board.v1.BoardColumn\x12E\n" +
+	"\fUpdateColumn\x12\x1d.board.v1.UpdateColumnRequest\x1a\x15.board.v1.BoardColumn\x12I\n" +
+	"\x0eReorderColumns\x12\x1f.board.v1.ReorderColumnsRequest\x1a\x16.google.protobuf.Empty\x12E\n" +
 	"\fDeleteColumn\x12\x1d.board.v1.DeleteColumnRequest\x1a\x16.google.protobuf.EmptyB'Z%database-service/api/board/v1;boardv1b\x06proto3"
 
 var (
@@ -642,7 +699,7 @@ func file_internal_database_service_api_board_v1_board_proto_rawDescGZIP() []byt
 	return file_internal_database_service_api_board_v1_board_proto_rawDescData
 }
 
-var file_internal_database_service_api_board_v1_board_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_internal_database_service_api_board_v1_board_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_internal_database_service_api_board_v1_board_proto_goTypes = []any{
 	(*Board)(nil),                     // 0: board.v1.Board
 	(*BoardColumn)(nil),               // 1: board.v1.BoardColumn
@@ -653,8 +710,9 @@ var file_internal_database_service_api_board_v1_board_proto_goTypes = []any{
 	(*GetBoardsByUserIdResponse)(nil), // 6: board.v1.GetBoardsByUserIdResponse
 	(*CreateColumnRequest)(nil),       // 7: board.v1.CreateColumnRequest
 	(*UpdateColumnRequest)(nil),       // 8: board.v1.UpdateColumnRequest
-	(*DeleteColumnRequest)(nil),       // 9: board.v1.DeleteColumnRequest
-	(*emptypb.Empty)(nil),             // 10: google.protobuf.Empty
+	(*ReorderColumnsRequest)(nil),     // 9: board.v1.ReorderColumnsRequest
+	(*DeleteColumnRequest)(nil),       // 10: board.v1.DeleteColumnRequest
+	(*emptypb.Empty)(nil),             // 11: google.protobuf.Empty
 }
 var file_internal_database_service_api_board_v1_board_proto_depIdxs = []int32{
 	1,  // 0: board.v1.Board.columns:type_name -> board.v1.BoardColumn
@@ -665,15 +723,17 @@ var file_internal_database_service_api_board_v1_board_proto_depIdxs = []int32{
 	5,  // 5: board.v1.BoardService.GetBoardsByUserId:input_type -> board.v1.GetBoardsByUserIdRequest
 	7,  // 6: board.v1.BoardService.CreateColumn:input_type -> board.v1.CreateColumnRequest
 	8,  // 7: board.v1.BoardService.UpdateColumn:input_type -> board.v1.UpdateColumnRequest
-	9,  // 8: board.v1.BoardService.DeleteColumn:input_type -> board.v1.DeleteColumnRequest
-	3,  // 9: board.v1.BoardService.CreateBoard:output_type -> board.v1.CreateBoardResponse
-	0,  // 10: board.v1.BoardService.GetBoardById:output_type -> board.v1.Board
-	6,  // 11: board.v1.BoardService.GetBoardsByUserId:output_type -> board.v1.GetBoardsByUserIdResponse
-	1,  // 12: board.v1.BoardService.CreateColumn:output_type -> board.v1.BoardColumn
-	1,  // 13: board.v1.BoardService.UpdateColumn:output_type -> board.v1.BoardColumn
-	10, // 14: board.v1.BoardService.DeleteColumn:output_type -> google.protobuf.Empty
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
+	9,  // 8: board.v1.BoardService.ReorderColumns:input_type -> board.v1.ReorderColumnsRequest
+	10, // 9: board.v1.BoardService.DeleteColumn:input_type -> board.v1.DeleteColumnRequest
+	3,  // 10: board.v1.BoardService.CreateBoard:output_type -> board.v1.CreateBoardResponse
+	0,  // 11: board.v1.BoardService.GetBoardById:output_type -> board.v1.Board
+	6,  // 12: board.v1.BoardService.GetBoardsByUserId:output_type -> board.v1.GetBoardsByUserIdResponse
+	1,  // 13: board.v1.BoardService.CreateColumn:output_type -> board.v1.BoardColumn
+	1,  // 14: board.v1.BoardService.UpdateColumn:output_type -> board.v1.BoardColumn
+	11, // 15: board.v1.BoardService.ReorderColumns:output_type -> google.protobuf.Empty
+	11, // 16: board.v1.BoardService.DeleteColumn:output_type -> google.protobuf.Empty
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -690,7 +750,7 @@ func file_internal_database_service_api_board_v1_board_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_database_service_api_board_v1_board_proto_rawDesc), len(file_internal_database_service_api_board_v1_board_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

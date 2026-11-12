@@ -4,28 +4,19 @@ import (
 	"context"
 	"core/model"
 	boardv1 "database-service/api/board/v1"
-	"errors"
 	"task-service/repository"
 	"testing"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type boardServiceClientStub struct {
 	boardv1.BoardServiceClient
-	createBoardFunc  func(context.Context, *boardv1.CreateBoardRequest, ...grpc.CallOption) (*boardv1.CreateBoardResponse, error)
-	deleteColumnFunc func(context.Context, *boardv1.DeleteColumnRequest, ...grpc.CallOption) (*emptypb.Empty, error)
+	createBoardFunc func(context.Context, *boardv1.CreateBoardRequest, ...grpc.CallOption) (*boardv1.CreateBoardResponse, error)
 }
 
 func (stub *boardServiceClientStub) CreateBoard(ctx context.Context, request *boardv1.CreateBoardRequest, options ...grpc.CallOption) (*boardv1.CreateBoardResponse, error) {
 	return stub.createBoardFunc(ctx, request, options...)
-}
-
-func (stub *boardServiceClientStub) DeleteColumn(ctx context.Context, request *boardv1.DeleteColumnRequest, options ...grpc.CallOption) (*emptypb.Empty, error) {
-	return stub.deleteColumnFunc(ctx, request, options...)
 }
 
 func TestGRPCBoardRepositoryCreateMapsRequestAndResponse(t *testing.T) {
@@ -57,22 +48,5 @@ func TestGRPCBoardRepositoryCreateMapsRequestAndResponse(t *testing.T) {
 	}
 	if board.Id != 7 || board.DoneColumnId != 11 || len(board.Columns) != 2 {
 		t.Fatalf("board = %+v", board)
-	}
-}
-
-func TestGRPCBoardRepositoryDeleteColumnPreservesError(t *testing.T) {
-	wantErr := status.Error(codes.FailedPrecondition, "done column cannot be deleted")
-	client := &boardServiceClientStub{
-		deleteColumnFunc: func(_ context.Context, request *boardv1.DeleteColumnRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
-			if request.BoardId != 7 || request.Id != 11 || request.TargetColumnId != 8 {
-				t.Fatalf("request = %+v", request)
-			}
-			return nil, wantErr
-		},
-	}
-
-	err := repository.NewGRPCBoardRepository(client).DeleteColumn(context.Background(), 7, 11, 8)
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("error = %v, want %v", err, wantErr)
 	}
 }

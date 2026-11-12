@@ -11,6 +11,7 @@ var (
 	ErrDoneColumnCannotBeDeleted  = errors.New("done column cannot be deleted")
 	ErrTargetColumnRequired       = errors.New("target column is required for a non-empty column")
 	ErrTargetColumnBelongsToBoard = errors.New("target column must belong to the same board")
+	ErrInvalidBoardColumnOrder    = errors.New("column order must contain every board column exactly once")
 )
 
 type Board struct {

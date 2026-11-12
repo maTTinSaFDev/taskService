@@ -9,16 +9,16 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type BoardHandler struct {
 	boardv1.UnimplementedBoardServiceServer
-	boardService service.BoardService
+	boardService       service.BoardService
+	boardColumnService service.BoardColumnService
 }
 
-func NewBoardHandler(boardService service.BoardService) *BoardHandler {
-	return &BoardHandler{boardService: boardService}
+func NewBoardHandler(boardService service.BoardService, boardColumnService service.BoardColumnService) *BoardHandler {
+	return &BoardHandler{boardService: boardService, boardColumnService: boardColumnService}
 }
 
 func (handler *BoardHandler) CreateBoard(_ context.Context, request *boardv1.CreateBoardRequest) (*boardv1.CreateBoardResponse, error) {
@@ -68,61 +68,6 @@ func (handler *BoardHandler) GetBoardsByUserId(_ context.Context, request *board
 	return response, nil
 }
 
-func (handler *BoardHandler) CreateColumn(_ context.Context, request *boardv1.CreateColumnRequest) (*boardv1.BoardColumn, error) {
-	if request == nil {
-		return nil, status.Error(codes.InvalidArgument, "create column request is nil")
-	}
-	columnModel := &model.BoardColumn{
-		BoardId:  request.BoardId,
-		Title:    request.Title,
-		Position: request.Position,
-	}
-	if err := columnModel.Validate(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	column, err := handler.boardService.CreateColumn(columnModel)
-	if err != nil {
-		return nil, boardStatusError(err)
-	}
-	return boardColumnToProto(column), nil
-}
-
-func (handler *BoardHandler) UpdateColumn(_ context.Context, request *boardv1.UpdateColumnRequest) (*boardv1.BoardColumn, error) {
-	if request == nil {
-		return nil, status.Error(codes.InvalidArgument, "update column request is nil")
-	}
-	columnModel := &model.BoardColumn{
-		Id:       request.Id,
-		BoardId:  request.BoardId,
-		Title:    request.Title,
-		Position: request.Position,
-	}
-	if columnModel.Id <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "board column id must be greater than zero")
-	}
-	if err := columnModel.Validate(); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	column, err := handler.boardService.UpdateColumn(columnModel)
-	if err != nil {
-		return nil, boardStatusError(err)
-	}
-	return boardColumnToProto(column), nil
-}
-
-func (handler *BoardHandler) DeleteColumn(_ context.Context, request *boardv1.DeleteColumnRequest) (*emptypb.Empty, error) {
-	if request == nil {
-		return nil, status.Error(codes.InvalidArgument, "delete column request is nil")
-	}
-	if request.Id <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "board column id must be greater than zero")
-	}
-	if err := handler.boardService.DeleteColumn(request.BoardId, request.Id, request.TargetColumnId); err != nil {
-		return nil, boardStatusError(err)
-	}
-	return &emptypb.Empty{}, nil
-}
-
 func boardToProto(board *model.Board) *boardv1.Board {
 	result := &boardv1.Board{
 		Id:           board.Id,
@@ -150,7 +95,7 @@ func boardStatusError(err error) error {
 	switch {
 	case errors.Is(err, model.ErrBoardNotFound), errors.Is(err, model.ErrBoardColumnNotFound):
 		return status.Error(codes.NotFound, err.Error())
-	case errors.Is(err, model.ErrDoneColumnCannotBeDeleted), errors.Is(err, model.ErrTargetColumnRequired), errors.Is(err, model.ErrTargetColumnBelongsToBoard):
+	case errors.Is(err, model.ErrDoneColumnCannotBeDeleted), errors.Is(err, model.ErrTargetColumnRequired), errors.Is(err, model.ErrTargetColumnBelongsToBoard), errors.Is(err, model.ErrInvalidBoardColumnOrder):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Error(codes.Internal, err.Error())

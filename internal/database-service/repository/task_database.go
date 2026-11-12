@@ -88,18 +88,11 @@ func NewTaskRepository(pool *pgxpool.Pool) TaskRepository {
 }
 
 func (repo *TaskRepositoryImpl) GetById(id int64) (*model.Task, error) {
-	connection, err := repo.pool.Acquire(context.Background())
-	if err != nil {
-		// TODO: add logs
-		return nil, err
-	}
-	defer connection.Release()
-
-	result := connection.QueryRow(context.Background(), getTaskSql, id)
+	result := repo.pool.QueryRow(context.Background(), getTaskSql, id)
 	task := model.Task{}
 	var durationSeconds int32
 
-	err = scanTask(result, &task, &durationSeconds)
+	err := scanTask(result, &task, &durationSeconds)
 	if err != nil {
 		// TODO add logs
 		return nil, mapTaskLookupError(err)
@@ -117,14 +110,7 @@ func mapTaskLookupError(err error) error {
 }
 
 func (repo *TaskRepositoryImpl) GetByUserId(userId int64, boardId int64) ([]*model.Task, error) {
-	connection, err := repo.pool.Acquire(context.Background())
-	if err != nil {
-		// TODO: add logs
-		return nil, err
-	}
-	defer connection.Release()
-
-	result, err := connection.Query(context.Background(), getTasksByUserIdSql, userId, boardId)
+	result, err := repo.pool.Query(context.Background(), getTasksByUserIdSql, userId, boardId)
 	if err != nil {
 		// TODO: add logs
 		return nil, err
@@ -150,15 +136,8 @@ func (repo *TaskRepositoryImpl) GetByUserId(userId int64, boardId int64) ([]*mod
 }
 
 func (repo *TaskRepositoryImpl) Create(task *model.Task) (*model.Task, error) {
-	connection, err := repo.pool.Acquire(context.Background())
-	if err != nil {
-		// TODO add logs
-		return nil, err
-	}
-	defer connection.Release()
-
 	durationSeconds := int64(task.Duration / time.Second)
-	result := connection.QueryRow(context.Background(),
+	result := repo.pool.QueryRow(context.Background(),
 		createTaskSql,
 		task.Title,
 		task.Description,
@@ -172,7 +151,7 @@ func (repo *TaskRepositoryImpl) Create(task *model.Task) (*model.Task, error) {
 		task.Priority,
 	)
 
-	err = result.Scan(&task.Id, &task.ColumnId, &task.IsDone, &task.CompletedAt)
+	err := result.Scan(&task.Id, &task.ColumnId, &task.IsDone, &task.CompletedAt)
 	if err != nil {
 		// TODO add logs
 		return nil, err
@@ -183,14 +162,7 @@ func (repo *TaskRepositoryImpl) Create(task *model.Task) (*model.Task, error) {
 }
 
 func (repo *TaskRepositoryImpl) Update(task *model.Task) error {
-	connection, err := repo.pool.Acquire(context.Background())
-	if err != nil {
-		// TODO add logs
-		return err
-	}
-	defer connection.Release()
-
-	err = connection.QueryRow(context.Background(),
+	err := repo.pool.QueryRow(context.Background(),
 		updateTaskSql,
 		task.Id,
 		task.Title,
@@ -233,14 +205,7 @@ func scanTask(scanner taskRowScanner, task *model.Task, durationSeconds *int32) 
 }
 
 func (repo *TaskRepositoryImpl) Delete(taskId int64) error {
-	connection, err := repo.pool.Acquire(context.Background())
-	if err != nil {
-		// TODO add logs
-		return err
-	}
-	defer connection.Release()
-
-	_, err = connection.Exec(context.Background(), deleteTaskSql, taskId)
+	_, err := repo.pool.Exec(context.Background(), deleteTaskSql, taskId)
 
 	if err != nil {
 		// TODO add logs

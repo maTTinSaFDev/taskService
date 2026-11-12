@@ -20,8 +20,6 @@ type GRPCTaskRepository struct {
 	client taskv1.TaskServiceClient
 }
 
-var _ TaskRepository = (*GRPCTaskRepository)(nil)
-
 func NewGRPCTaskRepository(client taskv1.TaskServiceClient) *GRPCTaskRepository {
 	return &GRPCTaskRepository{client: client}
 }
