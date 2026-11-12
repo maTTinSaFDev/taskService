@@ -8,10 +8,10 @@ package authv1
 
 import (
 	context "context"
+	v1 "database-service/api/user/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -20,12 +20,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthPersistenceService_CreateIdentity_FullMethodName       = "/auth.v1.AuthPersistenceService/CreateIdentity"
+	AuthPersistenceService_CreateUser_FullMethodName           = "/auth.v1.AuthPersistenceService/CreateUser"
 	AuthPersistenceService_GetCredentialByEmail_FullMethodName = "/auth.v1.AuthPersistenceService/GetCredentialByEmail"
-	AuthPersistenceService_GetIdentityById_FullMethodName      = "/auth.v1.AuthPersistenceService/GetIdentityById"
-	AuthPersistenceService_CreateRefreshSession_FullMethodName = "/auth.v1.AuthPersistenceService/CreateRefreshSession"
-	AuthPersistenceService_RotateRefreshSession_FullMethodName = "/auth.v1.AuthPersistenceService/RotateRefreshSession"
-	AuthPersistenceService_RevokeRefreshSession_FullMethodName = "/auth.v1.AuthPersistenceService/RevokeRefreshSession"
+	AuthPersistenceService_GetUserById_FullMethodName          = "/auth.v1.AuthPersistenceService/GetUserById"
 )
 
 // AuthPersistenceServiceClient is the client API for AuthPersistenceService service.
@@ -33,15 +30,11 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // AuthPersistenceService is an internal API used only by auth-service. It
-// deliberately keeps password and refresh-token verification out of the
-// database-service while preserving database-service as the persistence owner.
+// deliberately keeps password verification out of the database-service.
 type AuthPersistenceServiceClient interface {
-	CreateIdentity(ctx context.Context, in *CreateIdentityRequest, opts ...grpc.CallOption) (*Identity, error)
+	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*v1.User, error)
 	GetCredentialByEmail(ctx context.Context, in *GetCredentialByEmailRequest, opts ...grpc.CallOption) (*Credential, error)
-	GetIdentityById(ctx context.Context, in *GetIdentityByIdRequest, opts ...grpc.CallOption) (*Identity, error)
-	CreateRefreshSession(ctx context.Context, in *CreateRefreshSessionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	RotateRefreshSession(ctx context.Context, in *RotateRefreshSessionRequest, opts ...grpc.CallOption) (*Identity, error)
-	RevokeRefreshSession(ctx context.Context, in *RevokeRefreshSessionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetUserById(ctx context.Context, in *GetUserByIdRequest, opts ...grpc.CallOption) (*v1.User, error)
 }
 
 type authPersistenceServiceClient struct {
@@ -52,10 +45,10 @@ func NewAuthPersistenceServiceClient(cc grpc.ClientConnInterface) AuthPersistenc
 	return &authPersistenceServiceClient{cc}
 }
 
-func (c *authPersistenceServiceClient) CreateIdentity(ctx context.Context, in *CreateIdentityRequest, opts ...grpc.CallOption) (*Identity, error) {
+func (c *authPersistenceServiceClient) CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*v1.User, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Identity)
-	err := c.cc.Invoke(ctx, AuthPersistenceService_CreateIdentity_FullMethodName, in, out, cOpts...)
+	out := new(v1.User)
+	err := c.cc.Invoke(ctx, AuthPersistenceService_CreateUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -72,40 +65,10 @@ func (c *authPersistenceServiceClient) GetCredentialByEmail(ctx context.Context,
 	return out, nil
 }
 
-func (c *authPersistenceServiceClient) GetIdentityById(ctx context.Context, in *GetIdentityByIdRequest, opts ...grpc.CallOption) (*Identity, error) {
+func (c *authPersistenceServiceClient) GetUserById(ctx context.Context, in *GetUserByIdRequest, opts ...grpc.CallOption) (*v1.User, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Identity)
-	err := c.cc.Invoke(ctx, AuthPersistenceService_GetIdentityById_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *authPersistenceServiceClient) CreateRefreshSession(ctx context.Context, in *CreateRefreshSessionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, AuthPersistenceService_CreateRefreshSession_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *authPersistenceServiceClient) RotateRefreshSession(ctx context.Context, in *RotateRefreshSessionRequest, opts ...grpc.CallOption) (*Identity, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Identity)
-	err := c.cc.Invoke(ctx, AuthPersistenceService_RotateRefreshSession_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *authPersistenceServiceClient) RevokeRefreshSession(ctx context.Context, in *RevokeRefreshSessionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, AuthPersistenceService_RevokeRefreshSession_FullMethodName, in, out, cOpts...)
+	out := new(v1.User)
+	err := c.cc.Invoke(ctx, AuthPersistenceService_GetUserById_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,15 +80,11 @@ func (c *authPersistenceServiceClient) RevokeRefreshSession(ctx context.Context,
 // for forward compatibility.
 //
 // AuthPersistenceService is an internal API used only by auth-service. It
-// deliberately keeps password and refresh-token verification out of the
-// database-service while preserving database-service as the persistence owner.
+// deliberately keeps password verification out of the database-service.
 type AuthPersistenceServiceServer interface {
-	CreateIdentity(context.Context, *CreateIdentityRequest) (*Identity, error)
+	CreateUser(context.Context, *CreateUserRequest) (*v1.User, error)
 	GetCredentialByEmail(context.Context, *GetCredentialByEmailRequest) (*Credential, error)
-	GetIdentityById(context.Context, *GetIdentityByIdRequest) (*Identity, error)
-	CreateRefreshSession(context.Context, *CreateRefreshSessionRequest) (*emptypb.Empty, error)
-	RotateRefreshSession(context.Context, *RotateRefreshSessionRequest) (*Identity, error)
-	RevokeRefreshSession(context.Context, *RevokeRefreshSessionRequest) (*emptypb.Empty, error)
+	GetUserById(context.Context, *GetUserByIdRequest) (*v1.User, error)
 	mustEmbedUnimplementedAuthPersistenceServiceServer()
 }
 
@@ -136,23 +95,14 @@ type AuthPersistenceServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAuthPersistenceServiceServer struct{}
 
-func (UnimplementedAuthPersistenceServiceServer) CreateIdentity(context.Context, *CreateIdentityRequest) (*Identity, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateIdentity not implemented")
+func (UnimplementedAuthPersistenceServiceServer) CreateUser(context.Context, *CreateUserRequest) (*v1.User, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateUser not implemented")
 }
 func (UnimplementedAuthPersistenceServiceServer) GetCredentialByEmail(context.Context, *GetCredentialByEmailRequest) (*Credential, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCredentialByEmail not implemented")
 }
-func (UnimplementedAuthPersistenceServiceServer) GetIdentityById(context.Context, *GetIdentityByIdRequest) (*Identity, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetIdentityById not implemented")
-}
-func (UnimplementedAuthPersistenceServiceServer) CreateRefreshSession(context.Context, *CreateRefreshSessionRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateRefreshSession not implemented")
-}
-func (UnimplementedAuthPersistenceServiceServer) RotateRefreshSession(context.Context, *RotateRefreshSessionRequest) (*Identity, error) {
-	return nil, status.Error(codes.Unimplemented, "method RotateRefreshSession not implemented")
-}
-func (UnimplementedAuthPersistenceServiceServer) RevokeRefreshSession(context.Context, *RevokeRefreshSessionRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method RevokeRefreshSession not implemented")
+func (UnimplementedAuthPersistenceServiceServer) GetUserById(context.Context, *GetUserByIdRequest) (*v1.User, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserById not implemented")
 }
 func (UnimplementedAuthPersistenceServiceServer) mustEmbedUnimplementedAuthPersistenceServiceServer() {
 }
@@ -176,20 +126,20 @@ func RegisterAuthPersistenceServiceServer(s grpc.ServiceRegistrar, srv AuthPersi
 	s.RegisterService(&AuthPersistenceService_ServiceDesc, srv)
 }
 
-func _AuthPersistenceService_CreateIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateIdentityRequest)
+func _AuthPersistenceService_CreateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateUserRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthPersistenceServiceServer).CreateIdentity(ctx, in)
+		return srv.(AuthPersistenceServiceServer).CreateUser(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthPersistenceService_CreateIdentity_FullMethodName,
+		FullMethod: AuthPersistenceService_CreateUser_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthPersistenceServiceServer).CreateIdentity(ctx, req.(*CreateIdentityRequest))
+		return srv.(AuthPersistenceServiceServer).CreateUser(ctx, req.(*CreateUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -212,74 +162,20 @@ func _AuthPersistenceService_GetCredentialByEmail_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthPersistenceService_GetIdentityById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetIdentityByIdRequest)
+func _AuthPersistenceService_GetUserById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserByIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthPersistenceServiceServer).GetIdentityById(ctx, in)
+		return srv.(AuthPersistenceServiceServer).GetUserById(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthPersistenceService_GetIdentityById_FullMethodName,
+		FullMethod: AuthPersistenceService_GetUserById_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthPersistenceServiceServer).GetIdentityById(ctx, req.(*GetIdentityByIdRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AuthPersistenceService_CreateRefreshSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateRefreshSessionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthPersistenceServiceServer).CreateRefreshSession(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthPersistenceService_CreateRefreshSession_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthPersistenceServiceServer).CreateRefreshSession(ctx, req.(*CreateRefreshSessionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AuthPersistenceService_RotateRefreshSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RotateRefreshSessionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthPersistenceServiceServer).RotateRefreshSession(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthPersistenceService_RotateRefreshSession_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthPersistenceServiceServer).RotateRefreshSession(ctx, req.(*RotateRefreshSessionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AuthPersistenceService_RevokeRefreshSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeRefreshSessionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthPersistenceServiceServer).RevokeRefreshSession(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthPersistenceService_RevokeRefreshSession_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthPersistenceServiceServer).RevokeRefreshSession(ctx, req.(*RevokeRefreshSessionRequest))
+		return srv.(AuthPersistenceServiceServer).GetUserById(ctx, req.(*GetUserByIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -292,28 +188,16 @@ var AuthPersistenceService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AuthPersistenceServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateIdentity",
-			Handler:    _AuthPersistenceService_CreateIdentity_Handler,
+			MethodName: "CreateUser",
+			Handler:    _AuthPersistenceService_CreateUser_Handler,
 		},
 		{
 			MethodName: "GetCredentialByEmail",
 			Handler:    _AuthPersistenceService_GetCredentialByEmail_Handler,
 		},
 		{
-			MethodName: "GetIdentityById",
-			Handler:    _AuthPersistenceService_GetIdentityById_Handler,
-		},
-		{
-			MethodName: "CreateRefreshSession",
-			Handler:    _AuthPersistenceService_CreateRefreshSession_Handler,
-		},
-		{
-			MethodName: "RotateRefreshSession",
-			Handler:    _AuthPersistenceService_RotateRefreshSession_Handler,
-		},
-		{
-			MethodName: "RevokeRefreshSession",
-			Handler:    _AuthPersistenceService_RevokeRefreshSession_Handler,
+			MethodName: "GetUserById",
+			Handler:    _AuthPersistenceService_GetUserById_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

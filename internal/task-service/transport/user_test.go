@@ -37,8 +37,8 @@ func TestUserHandlerCreateRouteIsNotExposed(t *testing.T) {
 
 	router.ServeHTTP(response, request)
 
-	if response.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusMethodNotAllowed)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
 }
 

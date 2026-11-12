@@ -23,7 +23,6 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 }
 
 func RegisterUserRoutes(router *mux.Router, handler *UserHandler) {
-	router.HandleFunc("/users", handler.GetAll).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", handler.GetById).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", handler.Update).Methods(http.MethodPut)
 	router.HandleFunc("/users/{id}", handler.Delete).Methods(http.MethodDelete)
@@ -35,7 +34,7 @@ func (handler *UserHandler) Create(writer http.ResponseWriter, request *http.Req
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
-	user, err := handler.userService.Create(request.Context(), &model.User{Name: dtoValue.Name})
+	user, err := handler.userService.Create(request.Context(), &model.User{Name: dtoValue.Name, Email: dtoValue.Email})
 	if err != nil {
 		writeUserError(writer, err)
 		return
@@ -55,15 +54,6 @@ func (handler *UserHandler) GetById(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	writeJSON(writer, http.StatusOK, user)
-}
-
-func (handler *UserHandler) GetAll(writer http.ResponseWriter, request *http.Request) {
-	users, err := handler.userService.GetAll(request.Context())
-	if err != nil {
-		writeUserError(writer, err)
-		return
-	}
-	writeJSON(writer, http.StatusOK, users)
 }
 
 func (handler *UserHandler) Update(writer http.ResponseWriter, request *http.Request) {

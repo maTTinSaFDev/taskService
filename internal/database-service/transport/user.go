@@ -25,7 +25,7 @@ func (handler *UserHandler) CreateUser(_ context.Context, request *userv1.Create
 	if request == nil {
 		return nil, status.Error(codes.InvalidArgument, "create user request is nil")
 	}
-	userModel := &model.User{Name: request.Name}
+	userModel := &model.User{Name: request.Name, Email: request.Email}
 	if err := userModel.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -48,21 +48,6 @@ func (handler *UserHandler) GetUserById(_ context.Context, request *userv1.GetUs
 		return nil, userStatusError(err)
 	}
 	return userToProto(user), nil
-}
-
-func (handler *UserHandler) GetUsers(_ context.Context, request *userv1.GetUsersRequest) (*userv1.GetUsersResponse, error) {
-	if request == nil {
-		return nil, status.Error(codes.InvalidArgument, "get users request is nil")
-	}
-	users, err := handler.userService.GetAll()
-	if err != nil {
-		return nil, userStatusError(err)
-	}
-	response := &userv1.GetUsersResponse{Users: make([]*userv1.User, len(users))}
-	for index, user := range users {
-		response.Users[index] = userToProto(user)
-	}
-	return response, nil
 }
 
 func (handler *UserHandler) UpdateUser(_ context.Context, request *userv1.UpdateUserRequest) (*userv1.User, error) {
@@ -97,7 +82,7 @@ func (handler *UserHandler) DeleteUser(_ context.Context, request *userv1.Delete
 }
 
 func userToProto(user *model.User) *userv1.User {
-	return &userv1.User{Id: user.Id, Name: user.Name}
+	return &userv1.User{Id: user.Id, Name: user.Name, Email: user.Email}
 }
 
 func userStatusError(err error) error {

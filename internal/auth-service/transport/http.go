@@ -18,11 +18,11 @@ import (
 const refreshCookieName = "taskflow_refresh"
 
 type Handler struct {
-	service      *service.AuthService
+	service      service.AuthService
 	cookieSecure bool
 }
 
-func NewRouter(authService *service.AuthService, cookieSecure bool) *mux.Router {
+func NewRouter(authService service.AuthService, cookieSecure bool) *mux.Router {
 	handler := &Handler{service: authService, cookieSecure: cookieSecure}
 	router := mux.NewRouter()
 	router.HandleFunc("/healthz", handler.health).Methods(http.MethodGet)

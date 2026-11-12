@@ -14,6 +14,27 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+        fi
+        exec redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   database-service:
     build:
       context: .
@@ -68,12 +89,17 @@ services:
       ACCESS_TOKEN_TTL: "${ACCESS_TOKEN_TTL:-15m}"
       REFRESH_TOKEN_TTL: "${REFRESH_TOKEN_TTL:-720h}"
       AUTH_COOKIE_SECURE: "${AUTH_COOKIE_SECURE:-false}"
+      REDIS_ADDRESS: "redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
+      REDIS_DB: "${REDIS_DB:-0}"
     volumes:
       - ./secrets/auth-private.pem:/run/secrets/auth-private.pem:ro
     ports:
       - "${AUTH_SERVICE_PORT:-8090}:8090"
     depends_on:
       database-service:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/8090'" ]
@@ -101,3 +127,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

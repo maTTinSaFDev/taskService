@@ -22,8 +22,9 @@ func NewUserRepository(pool *pgxpool.Pool) UserRepository {
 func (repository *UserRepositoryImpl) Create(user *model.User) (*model.User, error) {
 	err := repository.pool.QueryRow(
 		context.Background(),
-		"INSERT INTO users (name) VALUES ($1) RETURNING id",
+		"INSERT INTO users (name, email) VALUES ($1, NULLIF($2, '')) RETURNING id",
 		user.Name,
+		user.Email,
 	).Scan(&user.Id)
 	if err != nil {
 		return nil, err
@@ -35,43 +36,22 @@ func (repository *UserRepositoryImpl) GetById(id int64) (*model.User, error) {
 	user := &model.User{}
 	err := repository.pool.QueryRow(
 		context.Background(),
-		"SELECT id, name FROM users WHERE id = $1",
+		"SELECT id, name, COALESCE(email, '') FROM users WHERE id = $1",
 		id,
-	).Scan(&user.Id, &user.Name)
+	).Scan(&user.Id, &user.Name, &user.Email)
 	if err != nil {
 		return nil, mapUserLookupError(err)
 	}
 	return user, nil
 }
 
-func (repository *UserRepositoryImpl) GetAll() ([]*model.User, error) {
-	rows, err := repository.pool.Query(context.Background(), "SELECT id, name FROM users ORDER BY id")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	users := make([]*model.User, 0)
-	for rows.Next() {
-		user := &model.User{}
-		if err := rows.Scan(&user.Id, &user.Name); err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-
 func (repository *UserRepositoryImpl) Update(user *model.User) (*model.User, error) {
 	err := repository.pool.QueryRow(
 		context.Background(),
-		"UPDATE users SET name = $2 WHERE id = $1 RETURNING id, name",
+		"UPDATE users SET name = $2 WHERE id = $1 RETURNING id, name, COALESCE(email, '')",
 		user.Id,
 		user.Name,
-	).Scan(&user.Id, &user.Name)
+	).Scan(&user.Id, &user.Name, &user.Email)
 	if err != nil {
 		return nil, mapUserLookupError(err)
 	}

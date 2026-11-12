@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"auth-service/service"
 	"auth-service/transport"
 	authv1 "database-service/api/auth/v1"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -48,6 +50,21 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	redisDB, err := strconv.Atoi(envOrDefault("REDIS_DB", "0"))
+	if err != nil || redisDB < 0 {
+		return errors.New("REDIS_DB must be a non-negative integer")
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     envOrDefault("REDIS_ADDRESS", "localhost:6379"),
+		Password: strings.TrimSpace(os.Getenv("REDIS_PASSWORD")),
+		DB:       redisDB,
+	})
+	defer redisClient.Close()
+	pingContext, cancelPing := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelPing()
+	if err := redisClient.Ping(pingContext).Err(); err != nil {
+		return fmt.Errorf("ping Redis: %w", err)
+	}
 
 	connection, err := grpc.NewClient(databaseAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -56,7 +73,8 @@ func run() error {
 	defer connection.Close()
 
 	authRepository := repository.NewGRPCAuthRepository(authv1.NewAuthPersistenceServiceClient(connection))
-	authService, err := service.NewAuthService(authRepository, service.NewBcryptHasher(12), tokens, refreshTTL)
+	sessionRepository := repository.NewRedisSessionRepository(redisClient)
+	authService, err := service.NewAuthService(authRepository, sessionRepository, service.NewBcryptHasher(12), tokens, refreshTTL)
 	if err != nil {
 		return err
 	}

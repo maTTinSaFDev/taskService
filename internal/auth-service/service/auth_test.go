@@ -10,31 +10,35 @@ import (
 )
 
 type authRepositoryStub struct {
-	createIdentityFunc func(context.Context, string, string, string) (*model.User, error)
-	getCredentialFunc  func(context.Context, string) (*model.Credential, error)
-	getIdentityFunc    func(context.Context, int64) (*model.User, error)
-	createSessionFunc  func(context.Context, int64, string, time.Time) error
-	rotateSessionFunc  func(context.Context, string, string, time.Time) (*model.User, error)
-	revokeSessionFunc  func(context.Context, string) error
+	createUserFunc    func(context.Context, string, string, string) (*model.User, error)
+	getCredentialFunc func(context.Context, string) (*model.Credential, error)
+	getUserFunc       func(context.Context, int64) (*model.User, error)
 }
 
-func (stub *authRepositoryStub) CreateIdentity(ctx context.Context, name, email, hash string) (*model.User, error) {
-	return stub.createIdentityFunc(ctx, name, email, hash)
+func (stub *authRepositoryStub) CreateUser(ctx context.Context, name, email, hash string) (*model.User, error) {
+	return stub.createUserFunc(ctx, name, email, hash)
 }
 func (stub *authRepositoryStub) GetCredentialByEmail(ctx context.Context, email string) (*model.Credential, error) {
 	return stub.getCredentialFunc(ctx, email)
 }
-func (stub *authRepositoryStub) GetIdentityByID(ctx context.Context, userID int64) (*model.User, error) {
-	return stub.getIdentityFunc(ctx, userID)
+func (stub *authRepositoryStub) GetUserByID(ctx context.Context, userID int64) (*model.User, error) {
+	return stub.getUserFunc(ctx, userID)
 }
-func (stub *authRepositoryStub) CreateRefreshSession(ctx context.Context, userID int64, hash string, expiry time.Time) error {
-	return stub.createSessionFunc(ctx, userID, hash, expiry)
+
+type sessionRepositoryStub struct {
+	createFunc func(context.Context, *model.User, string, time.Duration) error
+	rotateFunc func(context.Context, string, string, time.Duration) (*model.User, error)
+	revokeFunc func(context.Context, string) error
 }
-func (stub *authRepositoryStub) RotateRefreshSession(ctx context.Context, current, replacement string, expiry time.Time) (*model.User, error) {
-	return stub.rotateSessionFunc(ctx, current, replacement, expiry)
+
+func (stub *sessionRepositoryStub) Create(ctx context.Context, user *model.User, hash string, ttl time.Duration) error {
+	return stub.createFunc(ctx, user, hash, ttl)
 }
-func (stub *authRepositoryStub) RevokeRefreshSession(ctx context.Context, hash string) error {
-	return stub.revokeSessionFunc(ctx, hash)
+func (stub *sessionRepositoryStub) Rotate(ctx context.Context, current, replacement string, ttl time.Duration) (*model.User, error) {
+	return stub.rotateFunc(ctx, current, replacement, ttl)
+}
+func (stub *sessionRepositoryStub) Revoke(ctx context.Context, hash string) error {
+	return stub.revokeFunc(ctx, hash)
 }
 
 type passwordHasherStub struct{}
@@ -58,22 +62,24 @@ func (tokenManagerStub) Verify(string) (int64, error) { return 42, nil }
 
 func TestRegisterNormalizesEmailAndPersistsOnlyHashes(t *testing.T) {
 	var storedRefreshHash string
-	repository := &authRepositoryStub{
-		createIdentityFunc: func(_ context.Context, name, email, passwordHash string) (*model.User, error) {
+	authRepository := &authRepositoryStub{
+		createUserFunc: func(_ context.Context, name, email, passwordHash string) (*model.User, error) {
 			if name != "Vadim" || email != "user@example.com" || passwordHash != "hashed:very-secure-password" {
-				t.Fatalf("identity input = %q, %q, %q", name, email, passwordHash)
+				t.Fatalf("user input = %q, %q, %q", name, email, passwordHash)
 			}
 			return &model.User{ID: 42, Name: name, Email: email}, nil
 		},
-		createSessionFunc: func(_ context.Context, userID int64, tokenHash string, _ time.Time) error {
-			if userID != 42 || len(tokenHash) != 64 {
-				t.Fatalf("refresh persistence = user %d, hash %q", userID, tokenHash)
+	}
+	sessionRepository := &sessionRepositoryStub{
+		createFunc: func(_ context.Context, user *model.User, tokenHash string, ttl time.Duration) error {
+			if user.ID != 42 || len(tokenHash) != 64 || ttl != 24*time.Hour {
+				t.Fatalf("refresh persistence = user %d, hash %q, ttl %v", user.ID, tokenHash, ttl)
 			}
 			storedRefreshHash = tokenHash
 			return nil
 		},
 	}
-	authService, err := NewAuthService(repository, passwordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
+	authService, err := NewAuthService(authRepository, sessionRepository, passwordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("NewAuthService returned error: %v", err)
 	}
@@ -89,19 +95,19 @@ func TestRegisterNormalizesEmailAndPersistsOnlyHashes(t *testing.T) {
 func TestRefreshRotatesHashedToken(t *testing.T) {
 	const currentRaw = "current-refresh-secret"
 	var replacementHash string
-	repository := &authRepositoryStub{
-		rotateSessionFunc: func(_ context.Context, currentHash string, nextHash string, _ time.Time) (*model.User, error) {
+	sessionRepository := &sessionRepositoryStub{
+		rotateFunc: func(_ context.Context, currentHash string, nextHash string, ttl time.Duration) (*model.User, error) {
 			if currentHash != hashRefreshToken(currentRaw) || currentHash == currentRaw {
 				t.Fatalf("current hash = %q", currentHash)
 			}
-			if len(nextHash) != 64 || nextHash == currentHash {
+			if len(nextHash) != 64 || nextHash == currentHash || ttl != 24*time.Hour {
 				t.Fatalf("replacement hash = %q", nextHash)
 			}
 			replacementHash = nextHash
 			return &model.User{ID: 42, Name: "Vadim", Email: "user@example.com"}, nil
 		},
 	}
-	authService, err := NewAuthService(repository, passwordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
+	authService, err := NewAuthService(&authRepositoryStub{}, sessionRepository, passwordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("NewAuthService returned error: %v", err)
 	}
@@ -123,7 +129,7 @@ func TestLoginReturnsGenericErrorForWrongPassword(t *testing.T) {
 			}, nil
 		},
 	}
-	authService, err := NewAuthService(repository, rejectingPasswordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
+	authService, err := NewAuthService(repository, &sessionRepositoryStub{}, rejectingPasswordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("NewAuthService returned error: %v", err)
 	}
@@ -134,15 +140,15 @@ func TestLoginReturnsGenericErrorForWrongPassword(t *testing.T) {
 
 func TestLogoutRevokesOnlyHashedRefreshToken(t *testing.T) {
 	const raw = "refresh-token-to-revoke"
-	repository := &authRepositoryStub{
-		revokeSessionFunc: func(_ context.Context, tokenHash string) error {
+	sessionRepository := &sessionRepositoryStub{
+		revokeFunc: func(_ context.Context, tokenHash string) error {
 			if tokenHash == raw || tokenHash != hashRefreshToken(raw) {
 				t.Fatalf("revoke token hash = %q", tokenHash)
 			}
 			return nil
 		},
 	}
-	authService, err := NewAuthService(repository, passwordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
+	authService, err := NewAuthService(&authRepositoryStub{}, sessionRepository, passwordHasherStub{}, tokenManagerStub{}, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("NewAuthService returned error: %v", err)
 	}
