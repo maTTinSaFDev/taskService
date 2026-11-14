@@ -1,5 +1,5 @@
 FROM golang:1.27-bookworm
-LABEL authors="maTTinSaF"
+LABEL authors="maTTinSaFDev"
 
 WORKDIR /workspace
 
